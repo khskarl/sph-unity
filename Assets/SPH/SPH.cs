@@ -10,7 +10,7 @@ using UnityEngine.UI;
 // http://www.cs.umd.edu/class/fall2009/cmsc828v/presentations/Presentation1_Sep15.pdf
 // http://rlguy.com/sphfluidsim/
 
-class Particle
+public class Particle
 {
 	public Particle (Vector2 pos, Vector2 vel = default(Vector2))
 	{
@@ -25,6 +25,8 @@ class Particle
 	public Vector2 force = Vector2.zero;
 	public float pressure = 0;
 	public float density = 0;
+
+	public List<Particle> neighbors = new List<Particle>();
 }
 
 public class SPH : MonoBehaviour
@@ -41,8 +43,8 @@ public class SPH : MonoBehaviour
 	public float restDensity = 82.0f;
 
 
-	public Vector2 bounds = new Vector2 (10, 8);
-
+	public Vector2 size = new Vector2 (10, 8);
+	public Vector2 offset = new Vector2 (2, 2);
 
 	List<Particle> particles = new List<Particle> ();
 	Vector2 gravity = Physics.gravity;
@@ -50,6 +52,9 @@ public class SPH : MonoBehaviour
 	public bool usePressureForce = true;
 	public bool useViscosityForce = true;
 	public bool useGravityForce = false;
+
+
+	HashGrid2D grid;
 
 	/*-------*/
 	/* Debug */
@@ -59,13 +64,17 @@ public class SPH : MonoBehaviour
 	public bool bDrawForce = true;
 	public bool bDrawSmoothingRadius = true;
 
-	public Camera camera;
+	Camera camera;
 
 	void Start ()
 	{
 		txtDebug = GameObject.Find ("DebugText").GetComponent<Text> ();
+		camera = GameObject.FindGameObjectWithTag("MainCamera").GetComponent<Camera>();
 
 		smoothingRadius = radius * 6;
+
+		Vector2 offset = new Vector2(0, 0);
+		grid = new HashGrid2D(offset, size, Mathf.CeilToInt(smoothingRadius * 1.8f), smoothingRadius);
 		RestartSimulation ();
 	}
 
@@ -80,8 +89,8 @@ public class SPH : MonoBehaviour
 		float dx = smoothingRadius / 1.5f;
 		for (int i = 0; i < side; i++) {
 			for (int j = 0; j < side; j++) {
-				Vector2 pos = new Vector2 (i * dx, j * dx) - new Vector2 (side * dx, side * dx) / 2;
-				Vector2 vel = new Vector2 (Random.Range (-1f, 1f), Random.Range (-1f, 1f)) * 0.00f;
+				Vector2 pos = new Vector2 (i * dx, j * dx) + offset;
+				Vector2 vel = Vector2.zero;
 
 				Particle particle = new Particle (pos, vel);
 				particles.Add (particle);
@@ -92,6 +101,8 @@ public class SPH : MonoBehaviour
 
 	void FixedUpdate ()
 	{
+		RegisterToGrid();
+		AssignNeighbors();
 		Simulate (Time.fixedDeltaTime);
 	}
 
@@ -111,6 +122,7 @@ public class SPH : MonoBehaviour
 
 		}
 
+		grid.DrawGrid();
 		DrawDebug ();
 
 		if (selectedDebugParticle != null) {			
@@ -118,9 +130,25 @@ public class SPH : MonoBehaviour
 		}
 	}
 
-	int GetParticleCount ()
+	void RegisterToGrid() 
 	{
-		return particles.Count;
+		grid.ClearCells();
+
+		foreach (Particle p in particles)
+		{
+			grid.RegisterParticle(p);
+		}
+	}
+
+	void AssignNeighbors()
+	{
+		foreach (Particle p in particles)
+		{
+			List<Particle> possibleNeighbors = grid.GetNearby(p);
+
+			// HACK
+			p.neighbors = possibleNeighbors;
+		}
 	}
 
 	void Simulate (float dt)
@@ -130,7 +158,7 @@ public class SPH : MonoBehaviour
 
 			p0.density = 0.0f;
 
-			foreach (Particle p1 in particles) {		
+			foreach (Particle p1 in p0.neighbors) {		
 				if (p0 == p1)
 					continue;
 
@@ -148,16 +176,16 @@ public class SPH : MonoBehaviour
 
 
 		/* Compute forces */
-		foreach (Particle particle in particles) {
-			particle.force = Vector2.zero;
+		foreach (Particle p0 in particles) {
+			p0.force = Vector2.zero;
 
 			if (usePressureForce == true)
-				PressureForce (particle);
+				PressureForce (p0);
 
 			if (useViscosityForce == true)
-				ViscosityForce (particle);
+				ViscosityForce (p0);
 
-			ExternalForces (particle);
+			ExternalForces (p0);
 
 		}
 
@@ -199,7 +227,7 @@ public class SPH : MonoBehaviour
 		/* Pressure force caused by the gradient */
 		Vector2 pressureGradient = Vector2.zero;
 
-		foreach (Particle p in particles) {
+		foreach (Particle p in particle.neighbors) {
 			if (particle == p || particle.density == 0 || p.density == 0)
 				continue;
 
@@ -221,7 +249,7 @@ public class SPH : MonoBehaviour
 		/* Pressure Gradient */
 		Vector2 viscosityForce = Vector2.zero;
 
-		foreach (Particle p in particles) {
+		foreach (Particle p in particle.neighbors) {
 			if (particle == p || p.density == 0f || particle.density == 0f)
 				continue;
 
@@ -258,22 +286,22 @@ public class SPH : MonoBehaviour
 		float velocityDamping = 0.5f;
 		Vector2 pos = particle.position;
 
-		if (pos.x < -bounds.x) {
-			particle.position.x = -bounds.x;
+		if (pos.x < offset.x) {
+			particle.position.x = offset.x;
 			particle.velocity.x = -particle.velocity.x * velocityDamping;
 			particle.force.x = 0;
-		} else if (pos.x > bounds.x) {
-			particle.position.x = bounds.x;
+		} else if (pos.x > size.x + offset.x) {
+			particle.position.x = size.x + offset.x;
 			particle.velocity.x = -particle.velocity.x * velocityDamping;
 			particle.force.x = 0;
 		}
 
-		if (pos.y < -bounds.y) {
-			particle.position.y = -bounds.y;
+		if (pos.y < offset.y) {
+			particle.position.y = offset.y;
 			particle.velocity.y = -particle.velocity.y * velocityDamping;
 			particle.force.y = 0;
-		} else if (pos.y > bounds.y) {
-			particle.position.y = bounds.y;
+		} else if (pos.y > size.y + offset.y) {
+			particle.position.y = size.y + offset.y;
 			particle.velocity.y = -particle.velocity.y * velocityDamping;
 			particle.force.y = 0;
 		}
@@ -305,10 +333,10 @@ public class SPH : MonoBehaviour
 			}
 
 
-			Vector3 ul = new Vector3 (-bounds.x, bounds.y);
-			Vector3 ur = new Vector3 (bounds.x, bounds.y);
-			Vector3 dl = new Vector3 (-bounds.x, -bounds.y);
-			Vector3 dr = new Vector3 (bounds.x, -bounds.y);
+			Vector3 ul = new Vector3 (offset.x, size.y + offset.y);
+			Vector3 ur = new Vector3 (size.x + offset.x, size.y + offset.y);
+			Vector3 dl = new Vector3 (offset.x, offset.y);
+			Vector3 dr = new Vector3 (size.x + offset.x, offset.y);
 
 			Debug.DrawLine (ul, ur, Color.grey);
 			Debug.DrawLine (ur, dr, Color.grey);
