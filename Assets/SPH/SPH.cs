@@ -71,10 +71,8 @@ public class SPH : MonoBehaviour
 		txtDebug = GameObject.Find ("DebugText").GetComponent<Text> ();
 		camera = GameObject.FindGameObjectWithTag("MainCamera").GetComponent<Camera>();
 
-		smoothingRadius = radius * 6;
-
 		Vector2 offset = new Vector2(0, 0);
-		grid = new HashGrid2D(offset, size, Mathf.CeilToInt(smoothingRadius * 1.8f), smoothingRadius);
+		grid = new HashGrid2D(offset, size, Mathf.CeilToInt(smoothingRadius), smoothingRadius);
 		RestartSimulation ();
 	}
 
@@ -142,12 +140,20 @@ public class SPH : MonoBehaviour
 
 	void AssignNeighbors()
 	{
-		foreach (Particle p in particles)
+		foreach (Particle p0 in particles)
 		{
-			List<Particle> possibleNeighbors = grid.GetNearby(p);
+			List<Particle> possibleNeighbors = grid.GetNearby(p0);
 
-			// HACK
-			p.neighbors = possibleNeighbors;
+			p0.neighbors.Clear();
+			foreach (Particle p1 in possibleNeighbors)
+			{
+				if (p0 == p1)
+					continue;
+
+				float distSqr = (p0.position - p1.position).sqrMagnitude;
+				if (distSqr <= smoothingRadius)
+					p0.neighbors.Add(p1);
+			}
 		}
 	}
 
@@ -178,13 +184,22 @@ public class SPH : MonoBehaviour
 		/* Compute forces */
 		foreach (Particle p0 in particles) {
 			p0.force = Vector2.zero;
+			Vector2 pressureGradient = Vector2.zero;
+			Vector2 viscosityGradient = Vector2.zero;
 
-			if (usePressureForce == true)
-				PressureForce (p0);
+			foreach (Particle p1 in p0.neighbors)
+			{
+				if (p0 == p1)
+					continue;
 
-			if (useViscosityForce == true)
-				ViscosityForce (p0);
+				if (usePressureForce == true)
+					pressureGradient += PressureForce(p0, p1);						
 
+				if (useViscosityForce == true)
+					viscosityGradient += ViscosityForce (p0, p1);
+			}
+
+			p0.force += pressureGradient + viscosityGradient;
 			ExternalForces (p0);
 
 		}
@@ -222,43 +237,20 @@ public class SPH : MonoBehaviour
 		particle.pressure = kStiffness * (particle.density - restDensity);
 	}
 
-	void PressureForce (Particle particle)
+	Vector2 PressureForce (Particle p0, Particle p1)
 	{
-		/* Pressure force caused by the gradient */
-		Vector2 pressureGradient = Vector2.zero;
+		float dividend = p0.pressure + p1.pressure;
+		float divisor = 2 * p0.density * p1.density;
 
-		foreach (Particle p in particle.neighbors) {
-			if (particle == p || particle.density == 0 || p.density == 0)
-				continue;
-
-			float dividend = particle.pressure + p.pressure;
-			float divisor = 2 * particle.density * p.density;
-
-			Vector2 r = particle.position - p.position;
-//			if (r.sqrMagnitude > radius * radius) 
-			{
-				pressureGradient += -mass * (dividend / divisor) * Kernels.GradientSpiky (r, smoothingRadius);
-			}
-		}
-
-		particle.force += pressureGradient;		
+		Vector2 r = p0.position - p1.position;
+		return -mass * (dividend / divisor) * Kernels.GradientSpiky (r, smoothingRadius);		
 	}
 
-	void ViscosityForce (Particle particle)
+	Vector2 ViscosityForce (Particle p0, Particle p1)
 	{
-		/* Pressure Gradient */
-		Vector2 viscosityForce = Vector2.zero;
-
-		foreach (Particle p in particle.neighbors) {
-			if (particle == p || p.density == 0f || particle.density == 0f)
-				continue;
-
-			Vector2 r = particle.position - p.position;
-			Vector2 v = p.velocity - particle.velocity;
-			viscosityForce += viscosity * v * (mass / p.density) * Kernels.ViscosityLaplacian (r.magnitude, smoothingRadius);
-		}
-
-		particle.force += viscosityForce;		
+		Vector2 r = p0.position - p1.position;
+		Vector2 v = p1.velocity - p0.velocity;
+		return viscosity * v * (mass / p0.density) * Kernels.ViscosityLaplacian (r.magnitude, smoothingRadius);
 	}
 
 	void ExternalForces (Particle particle)
@@ -314,8 +306,8 @@ public class SPH : MonoBehaviour
 		foreach (Particle particle in particles) {
 			Vector3 pos = particle.position;
 			Vector3 dir = particle.velocity.normalized;
-			DebugExtension.DebugArrow (pos, dir * radius);
-			DebugExtension.DebugCircle (pos, Vector3.forward, radius);
+			DebugExtension.DebugArrow (pos, dir * radius, Color.white, 0, false);
+			DebugExtension.DebugCircle (pos, Vector3.forward, radius, 0, false);
 
 			Color radiusColor = new Color (0.5f, 0.5f, 0.5f, 0.1f);
 			if (bDrawSmoothingRadius) {

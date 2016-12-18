@@ -54,7 +54,7 @@ public class HashGrid2D
 
 	public void RegisterParticle(Particle particle)
 	{
-		List<int> cellIds = GetCellIdsForParticle(particle);
+		List<int> cellIds = GetCellsForParticle(particle);
 
 		foreach (int id in cellIds)
 		{
@@ -63,7 +63,7 @@ public class HashGrid2D
 
 	}
 
-	List<int> GetCellIdsForParticle(Particle particle)
+	List<int> GetCellsForParticle(Particle particle)
 	{
 		List<int> cellIds = new List<int>();  
 		Vector2 min = new Vector2(particle.position.x - radius,
@@ -74,46 +74,61 @@ public class HashGrid2D
 		float width = numCols;   
 		int cellId;
 		
-		cellId = GetCell(min, width);
+		cellId = GetHashValue(min);
 		if (cellIds.Contains(cellId) == false)
 			cellIds.Add(cellId);
 		
-		cellId = GetCell(new Vector2(max.x, min.y), width);
+		cellId = GetHashValue(new Vector2(max.x, min.y));
 		if (cellIds.Contains(cellId) == false)
 			cellIds.Add(cellId);
 		
-		cellId = GetCell(max, width);
+		cellId = GetHashValue(max);
 		if (cellIds.Contains(cellId) == false)
 			cellIds.Add(cellId);
 		
-		cellId = GetCell(new Vector2(min.x, max.y), width);
+		cellId = GetHashValue(new Vector2(min.x, max.y));
 		if (cellIds.Contains(cellId) == false)
 			cellIds.Add(cellId);
 
 		return cellIds;
 	}
 
-	private int GetCell(Vector2 pos, float width)
+	private int GetHashValue(Vector2 pos)
 	{
-		int cellId = (int)(
-			(Mathf.FloorToInt(pos.x / cellSize)) +
-			(Mathf.FloorToInt(pos.y / cellSize)) * width   
-		);
-		positions.Add(new Vector2(Mathf.FloorToInt(pos.x) + cellSize / 2, 
-								  Mathf.FloorToInt(pos.y)  + cellSize / 2));
-		return cellId;
+		int x = Mathf.FloorToInt(pos.x / cellSize);
+		int y = Mathf.FloorToInt(pos.y / cellSize);
+		
+		return x + y * numRows;
 	}
 
+	Vector2 GetHashKey(Vector2 position)
+	{
+		int x = Mathf.FloorToInt(position.x / cellSize);
+		int y = Mathf.FloorToInt(position.y / cellSize);
+		return new Vector2(x, y);
+	}
+
+	// SAME1
 	public List<Particle> GetNearby(Particle particle)
 	{
 		List<Particle> nearby = new List<Particle>();
-		List<int> cellIds =  GetCellIdsForParticle(particle);
+		List<int> cellIds =  GetCellsForParticle(particle);
 		foreach(int cellId in cellIds)
 		{
 			nearby.AddRange(cells[cellId]);
 		}
 		return nearby;
 	}
+	// SAME1
+	public List<Particle> GetPossibleNeighbours(Vector2 position)
+	{
+		List<Particle> neighbours;
+
+		cells.TryGetValue(GetHashValue(position), out neighbours);
+
+		return neighbours;
+	}
+
 
 	public int GetNumCells ()
 	{
