@@ -60,7 +60,7 @@ public class SPH : MonoBehaviour
 	/* Debug */
 	/*-------*/
 	Text txtDebug;
-	Particle selectedDebugParticle;
+	public Particle selectedDebugParticle;
 	public bool bDrawForce = true;
 	public bool bDrawSmoothingRadius = true;
 
@@ -87,7 +87,7 @@ public class SPH : MonoBehaviour
 		float dx = smoothingRadius / 1.5f;
 		for (int i = 0; i < side; i++) {
 			for (int j = 0; j < side; j++) {
-				Vector2 pos = new Vector2 (i * dx, j * dx) + offset;
+				Vector2 pos = new Vector2 (i * dx, j * dx) + offset + new Vector2(5, 5);
 				Vector2 vel = Vector2.zero;
 
 				Particle particle = new Particle (pos, vel);
@@ -121,9 +121,8 @@ public class SPH : MonoBehaviour
 		}
 
 		grid.DrawGrid();
-		DrawDebug ();
 
-		if (selectedDebugParticle != null) {			
+		if (selectedDebugParticle != null) {	
 			DrawDebugParticleText (selectedDebugParticle);
 		}
 	}
@@ -164,10 +163,7 @@ public class SPH : MonoBehaviour
 
 			p0.density = 0.0f;
 
-			foreach (Particle p1 in p0.neighbors) {		
-				if (p0 == p1)
-					continue;
-
+			foreach (Particle p1 in p0.neighbors) {
 				float distSqr = (p0.position - p1.position).sqrMagnitude;
 
 				if (distSqr <= smoothingRadius * smoothingRadius) {
@@ -189,9 +185,6 @@ public class SPH : MonoBehaviour
 
 			foreach (Particle p1 in p0.neighbors)
 			{
-				if (p0 == p1)
-					continue;
-
 				if (usePressureForce == true)
 					pressureGradient += PressureForce(p0, p1);						
 
@@ -269,6 +262,10 @@ public class SPH : MonoBehaviour
 		}
 	}
 
+	public List<Particle> GetParticles() {
+		return particles;
+	}
+
 	/* ************** */
 	/* Debug & others */
 	/* ************** */
@@ -298,43 +295,6 @@ public class SPH : MonoBehaviour
 			particle.force.y = 0;
 		}
 
-	}
-
-	void DrawDebug ()
-	{
-
-		foreach (Particle particle in particles) {
-			Vector3 pos = particle.position;
-			Vector3 dir = particle.velocity.normalized;
-			DebugExtension.DebugArrow (pos, dir * radius, Color.white, 0, false);
-			DebugExtension.DebugCircle (pos, Vector3.forward, radius, 0, false);
-
-			Color radiusColor = new Color (0.5f, 0.5f, 0.5f, 0.1f);
-			if (bDrawSmoothingRadius) {
-				if (particle == selectedDebugParticle)
-					DebugExtension.DebugCircle (pos, Vector3.forward, radiusColor * 2, smoothingRadius);
-				else
-					DebugExtension.DebugCircle (pos, Vector3.forward, radiusColor, smoothingRadius);
-			}
-
-
-			if (bDrawForce) {
-				Color forceColor = new Color (1.0f, 0, 0, 0.4f);
-				Vector3 force3 = new Vector3 (particle.force.x, particle.force.y, 0);
-				DebugExtension.DebugArrow (pos, force3 * radius * 1f, forceColor);
-			}
-
-
-			Vector3 ul = new Vector3 (offset.x, size.y + offset.y);
-			Vector3 ur = new Vector3 (size.x + offset.x, size.y + offset.y);
-			Vector3 dl = new Vector3 (offset.x, offset.y);
-			Vector3 dr = new Vector3 (size.x + offset.x, offset.y);
-
-			Debug.DrawLine (ul, ur, Color.grey);
-			Debug.DrawLine (ur, dr, Color.grey);
-			Debug.DrawLine (dr, dl, Color.grey);
-			Debug.DrawLine (dl, ul, Color.grey);
-		}
 	}
 
 	void DrawDebugParticleText (Particle particle)
