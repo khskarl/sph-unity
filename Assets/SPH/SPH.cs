@@ -31,17 +31,18 @@ public class Particle
 
 public class SPH : MonoBehaviour
 {
-	public int numParticles = 100;
+	public int numParticles = 200;
 	[Range (20f, 100f)]
-	public float kStiffness = 60f;
+	public float kStiffness = 50f;
 
 
-	public float mass = 28.0f;
-	public float radius = 0.2f;
-	public float smoothingRadius = 0.6f;
-	public float viscosity = 0.7f;
+	public float mass = 20.0f;
+	public float radius = 0.1f;
+	public float smoothingRadius = 0.7f;
+	public float viscosity = 0.6f;
 	public float restDensity = 82.0f;
 
+	public int numNeighborsLimit = 32;
 
 	public Vector2 size = new Vector2 (10, 8);
 	public Vector2 offset = new Vector2 (2, 2);
@@ -54,7 +55,7 @@ public class SPH : MonoBehaviour
 	public bool useGravityForce = false;
 
 
-	HashGrid2D grid;
+	public HashGrid2D grid;
 
 	/*-------*/
 	/* Debug */
@@ -84,7 +85,7 @@ public class SPH : MonoBehaviour
 
 		int side = (int)Mathf.Sqrt (numParticles);
 
-		float dx = smoothingRadius / 1.5f;
+		float dx = smoothingRadius * 0.75f;
 		for (int i = 0; i < side; i++) {
 			for (int j = 0; j < side; j++) {
 				Vector2 pos = new Vector2 (i * dx, j * dx) + offset + new Vector2(5, 5);
@@ -100,7 +101,7 @@ public class SPH : MonoBehaviour
 	void FixedUpdate ()
 	{
 		RegisterToGrid();
-		AssignNeighbors();
+		// AssignNeighbors();
 		Simulate (Time.fixedDeltaTime);
 	}
 
@@ -163,7 +164,11 @@ public class SPH : MonoBehaviour
 
 			p0.density = 0.0f;
 
-			foreach (Particle p1 in p0.neighbors) {
+			foreach (Particle p1 in grid.GetNearby(p0)) {
+
+				if (p0 == p1)
+					continue;
+
 				float distSqr = (p0.position - p1.position).sqrMagnitude;
 
 				if (distSqr <= smoothingRadius * smoothingRadius) {
@@ -183,8 +188,11 @@ public class SPH : MonoBehaviour
 			Vector2 pressureGradient = Vector2.zero;
 			Vector2 viscosityGradient = Vector2.zero;
 
-			foreach (Particle p1 in p0.neighbors)
+			foreach (Particle p1 in grid.GetNearby(p0))
 			{
+				if (p0 == p1)
+					continue;
+
 				if (usePressureForce == true)
 					pressureGradient += PressureForce(p0, p1);						
 

@@ -43,9 +43,9 @@ public class SPHRenderer : MonoBehaviour {
 
 		if (particle == selectedParticle) {
 			DebugExtension.DebugCircle (pos, Vector3.forward, Color.red, radius, 0, false);
-			foreach (Particle neighbor in selectedParticle.neighbors)
+			foreach (Particle neighbor in sph.grid.GetNearby(particle))
 			{
-				DebugExtension.DebugCircle (pos, Vector3.forward, Color.magenta * 0.7f, radius * 1.5f, 0, false);
+				DebugExtension.DebugCircle (neighbor.position, Vector3.forward, Color.magenta * 0.7f, radius * 1.5f, 0, false);
 			}
 		}
 		else
@@ -53,7 +53,7 @@ public class SPHRenderer : MonoBehaviour {
 			
 
 
-		Color radiusColor = new Color (0.5f, 0.5f, 0.5f, 0.1f);
+		Color radiusColor = new Color (0.5f, 0.5f, 0.5f, 0.4f);
 		if (drawSmoothingRadius) {
 			DebugExtension.DebugCircle (pos, Vector3.forward, radiusColor, smoothingRadius);
 		}
