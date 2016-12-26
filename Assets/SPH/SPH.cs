@@ -3,12 +3,18 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-// https://imdoingitwrong.wordpress.com/2010/12/14/why-my-fluids-dont-flow/
-// https://nccastaff.bournemouth.ac.uk/jmacey/MastersProjects/MSc11/Rajiv/MasterThesis.pdf
-// https://www8.cs.umu.se/kurser/TDBD24/VT06/lectures/sphsurvivalkit.pdf
-// http://www.essentialmath.com/GDC2010/VanVerth_Fluids10.pdf
-// http://www.cs.umd.edu/class/fall2009/cmsc828v/presentations/Presentation1_Sep15.pdf
-// http://rlguy.com/sphfluidsim/
+/* ---------- */
+/* References */
+/* ---------- */
+/*
+https://software.intel.com/en-us/articles/fluid-simulation-for-video-games-part-15/
+http://rlguy.com/sphfluidsim/
+https://imdoingitwrong.wordpress.com/2010/12/14/why-my-fluids-dont-flow/
+https://nccastaff.bournemouth.ac.uk/jmacey/MastersProjects/MSc11/Rajiv/MasterThesis.pdf
+https://www8.cs.umu.se/kurser/TDBD24/VT06/lectures/sphsurvivalkit.pdf
+http://www.essentialmath.com/GDC2010/VanVerth_Fluids10.pdf
+http://www.cs.umd.edu/class/fall2009/cmsc828v/presentations/Presentation1_Sep15.pdf
+*/ 
 
 public class Particle
 {
@@ -44,7 +50,7 @@ public class SPH : MonoBehaviour
 
 	public int numNeighborsLimit = 32;
 
-	public Vector2 size = new Vector2 (10, 8);
+	public Vector2 size = new Vector2 (16, 16);
 	public Vector2 offset = new Vector2 (2, 2);
 
 	List<Particle> particles = new List<Particle> ();
@@ -206,28 +212,21 @@ public class SPH : MonoBehaviour
 		}
 
 		/* Integrate motion */
-
-		// p(t+∆t) = p(t) + v(t)∆t + F(t)∆t2 / 2m
-		// v(t) = ( p(t) – p(t–∆t) ) / ∆t
+		/* Leapfrog integration */
 		foreach (Particle particle in particles) {
 			ForceBounds (particle);
 
-			if (true) {
-				Vector2 acceleration = particle.force;
-				particle.velocity += 0.5f * (particle.oldAcceleration + acceleration) * dt;
+			Vector2 acceleration = particle.force;
+			particle.velocity += 0.5f * (particle.oldAcceleration + acceleration) * dt;
 
-				Vector2 deltaPos = particle.velocity * dt + 0.5f * acceleration * dt * dt;
-//				if (deltaPos.sqrMagnitude > smoothingRadius * smoothingRadius) {
-//					deltaPos = Vector2.zero;
-//				}
-				
-				particle.position += deltaPos;
-				particle.oldAcceleration = acceleration;
-			} else {
-				particle.velocity = (particle.position - particle.oldPosition) / dt;
-				particle.oldPosition = particle.position;
-				particle.position += particle.velocity * dt + (particle.force * dt * dt) / (0.05f * mass);
-			}
+			Vector2 deltaPos = particle.velocity * dt + 0.5f * acceleration * dt * dt;
+			// if (deltaPos.sqrMagnitude > smoothingRadius * smoothingRadius) {
+			// 	deltaPos = Vector2.zero;
+			// }
+			
+			particle.position += deltaPos;
+			particle.oldAcceleration = acceleration;
+			
 
 		}
 	}
@@ -264,7 +263,7 @@ public class SPH : MonoBehaviour
 
 			Vector2 toMouseDir = mousePos - particle.position;
 
-			if (toMouseDir.sqrMagnitude < 4 * 4) {
+			if (toMouseDir.sqrMagnitude < 6 * 6) {
 				particle.force += toMouseDir * 10 - gravity;
 			}
 		}
