@@ -9,5 +9,5 @@ Due to limitations and feeling that I have learnt enough, I concluded it would b
 
 ## TODO
 - [ ] Add gifs to this README
-- [ ] Liquid-like renderer
-- [ ] Continue this project by remaking it outside of Unity and using parallel computing (maybe on a GPU)
+- [ ] Fluid like renderer
+- [ ] Continue this project by remaking it outside of Unity and using parallel computing (maybe on GPU?)
